@@ -2,6 +2,7 @@ package Dharanisri.Project.Models;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.Data;
 
@@ -10,11 +11,11 @@ import lombok.Data;
 public class Patient {
 
     @Id
-    @GeneratedValue
-    Long Id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    String PatientName;
-    int Age;
-    String Gender;
-    String ContactNumber;
+    private String patientName;
+    private int age;
+    private String gender;
+    private String contactNumber;
 }

@@ -13,25 +13,33 @@ public class PatientServices {
     @Autowired
     private PatientRepository patientrepository;
 
-    public Patient createpatient(Patient data){
-        Patient result = patientrepository.save(data);
-        return result;
-    }
-
-    public List<Patient> getallpatient(){
-        return patientrepository.findAll();
-    }
-
-    public Patient updatepatient(Patient data){
+    public Patient createpatient(Patient data) {
         return patientrepository.save(data);
     }
 
-    public Patient getbyid(Long Id){
-        return patientrepository.findById(Id)
+    public List<Patient> getallpatient() {
+        return patientrepository.findAll();
+    }
+
+    public Patient updatepatient(Patient data) {
+        if (data.getId() == null ||
+                !patientrepository.existsById(data.getId())) {
+            throw new RuntimeException("Patient not found");
+        }
+
+        return patientrepository.save(data);
+    }
+
+    public Patient getbyid(Long id) {
+        return patientrepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
     }
 
-    public void deletepatient(Long Id){
-        patientrepository.deleteById(Id);
+    public void deletepatient(Long id) {
+        if (!patientrepository.existsById(id)) {
+            throw new RuntimeException("Patient not found");
+        }
+
+        patientrepository.deleteById(id);
     }
 }

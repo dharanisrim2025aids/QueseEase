@@ -1,38 +1,11 @@
-```javascript
+
 const API = "http://localhost:8081/api";
 
-let doctors = [];
 let patients = [];
+let doctors = [];
 let tokens = [];
 
-function showToast(message, isError = false) {
-    const toast = document.getElementById("toast");
-
-    toast.textContent = message;
-    toast.className = "toast show" + (isError ? " error" : "");
-
-    setTimeout(() => {
-        toast.className = "toast";
-    }, 3000);
-}
-
-async function apiRequest(url, options = {}) {
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            "Content-Type": "application/json",
-            ...(options.headers || {})
-        }
-    });
-
-    const text = await response.text();
-
-    if (!response.ok) {
-        throw new Error(text || `Request failed: ${response.status}`);
-    }
-
-    return text ? JSON.parse(text) : null;
-}
+// ---------------- NAVIGATION ----------------
 
 function showSection(sectionId, button) {
     document.querySelectorAll(".section").forEach(section => {
@@ -45,19 +18,73 @@ function showSection(sectionId, button) {
         tab.classList.remove("active");
     });
 
-    button.classList.add("active");
+    if (button) {
+        button.classList.add("active");
+    }
+
+    if (sectionId === "dashboard") loadDashboard();
+    if (sectionId === "patients") loadPatients();
+    if (sectionId === "doctors") loadDoctors();
+
+    if (sectionId === "tokens") {
+        loadPatients();
+        loadDoctors();
+        loadTokens();
+    }
 }
 
-function getStatusBadge(status) {
-    const value = (status || "").toUpperCase();
+// ---------------- TOAST ----------------
 
-    let className = "waiting";
+function showToast(message, isError = false) {
+    const toast = document.getElementById("toast");
 
-    if (value === "SERVING") className = "serving";
-    if (value === "COMPLETED") className = "completed";
-    if (value === "CANCELLED") className = "cancelled";
+    toast.textContent = message;
+    toast.className = isError ? "toast error" : "toast";
+    toast.style.display = "block";
 
-    return `<span class="badge ${className}">${escapeHTML(value)}</span>`;
+    setTimeout(() => {
+        toast.style.display = "none";
+    }, 3000);
+}
+
+// ---------------- API HELPER ----------------
+
+async function apiRequest(url, method = "GET", data = null) {
+    const options = {
+        method: method,
+        headers: {
+            "Content-Type": "application/json"
+        }
+    };
+
+    if (data !== null) {
+        options.body = JSON.stringify(data);
+    }
+
+    const response = await fetch(url, options);
+    const text = await response.text();
+
+    if (!response.ok) {
+        throw new Error(text || `HTTP Error: ${response.status}`);
+    }
+
+    if (!text) return null;
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return text;
+    }
+}
+
+// ---------------- HELPER FUNCTIONS ----------------
+
+function getId(item) {
+    return item.id ?? item.Id;
+}
+
+function getValue(item, lower, upper) {
+    return item[lower] ?? item[upper];
 }
 
 function escapeHTML(value) {
@@ -66,150 +93,85 @@ function escapeHTML(value) {
         "<": "&lt;",
         ">": "&gt;",
         '"': "&quot;",
-        "'": "&#039;"
+        "'": "&#39;"
     })[character]);
 }
 
-function doctorName(id) {
-    const doctor = doctors.find(d => Number(d.id) === Number(id));
-    return doctor ? doctor.doctorName : `Doctor #${id ?? "-"}`;
+function getPatientName(token) {
+    const patient = getValue(token, "patient", "Patient");
+
+    return patient
+        ? getValue(patient, "patientName", "PatientName")
+        : "-";
 }
 
-function patientName(id) {
-    const patient = patients.find(p => Number(p.id) === Number(id));
-    return patient ? patient.patientName : `Patient #${id ?? "-"}`;
+function getDoctorName(token) {
+    const doctor = getValue(token, "doctor", "Doctor");
+
+    return doctor
+        ? getValue(doctor, "doctorName", "DoctorName")
+        : "-";
 }
 
-async function loadDoctors() {
-    doctors = await apiRequest(`${API}/doctor/getall`);
-
-    document.getElementById("doctorCount").textContent = doctors.length;
-
-    document.getElementById("doctorTable").innerHTML =
-        doctors.length
-            ? doctors.map(doctor => `
-<tr>
-<td>${doctor.id}</td>
-<td>${escapeHTML(doctor.doctorName)}</td>
-<td>${escapeHTML(doctor.specialization)}</td>
-<td>${doctor.averageConsultationTime} min</td>
-<td>${doctor.currentServingToken}</td>
-<td>
-    <button class="delete-btn"
-            onclick="deleteDoctor(${doctor.id})">Delete</button>
-</td>
-</tr>
-`).join("")
-            : `<tr><td colspan="6" class="empty">No doctors found</td></tr>`;
-
-    const options = doctors.map(doctor =>
-        `<option value="${doctor.id}">${escapeHTML(doctor.doctorName)} - ${escapeHTML(doctor.specialization)}</option>`
-    ).join("");
-
-    document.getElementById("tokenDoctor").innerHTML =
-        `<option value="">Select doctor</option>${options}`;
-
-document.getElementById("advanceDoctor").innerHTML =
-    `<option value="">Select doctor</option>${options}`;
-}
+// ==================================================
+// PATIENT CRUD
+// ==================================================
 
 async function loadPatients() {
-    patients = await apiRequest(`${API}/patient/getall`);
-
-    document.getElementById("patientCount").textContent = patients.length;
-
-    document.getElementById("patientTable").innerHTML =
-        patients.length
-            ? patients.map(patient => `
-                <tr>
-                    <td>${patient.id}</td>
-                    <td>${escapeHTML(patient.patientName)}</td>
-                    <td>${patient.age}</td>
-                    <td>${escapeHTML(patient.gender)}</td>
-                    <td>${escapeHTML(patient.contactNumber)}</td>
-                    <td>
-                        <button class="delete-btn"
-                            onclick="deletePatient(${patient.id})">Delete</button>
-                    </td>
-                </tr>
-            `).join("")
-            : `<tr><td colspan="6" class="empty">No patients found</td></tr>`;
-
-    document.getElementById("tokenPatient").innerHTML =
-        `<option value="">Select patient</option>` +
-        patients.map(patient =>
-            `<option value="${patient.id}">${escapeHTML(patient.patientName)} (#${patient.id})</option>`
-        ).join("");
-}
-
-async function loadTokens() {
-    tokens = await apiRequest(`${API}/token/getall`);
-
-    document.getElementById("tokenCount").textContent = tokens.length;
-
-    document.getElementById("waitingCount").textContent =
-        tokens.filter(token => token.status === "WAITING").length;
-
-    const rows = tokens.map(token => `
-        <tr>
-            <td>${token.id}</td>
-            <td>#${token.tokenNumber}</td>
-            <td>${escapeHTML(patientName(token.patient?.id))}</td>
-            <td>${escapeHTML(doctorName(token.doctor?.id))}</td>
-            <td>${escapeHTML(token.tokenDate)}</td>
-            <td>
-                <span class="badge ${token.isPriority ? "priority" : "normal"}">
-                    ${token.isPriority ? "Priority" : "Normal"}
-                </span>
-            </td>
-            <td>${getStatusBadge(token.status)}</td>
-            <td>${token.estimatedWaitTime} min</td>
-            <td>
-                <button class="delete-btn"
-                    onclick="deleteToken(${token.id})">Delete</button>
-            </td>
-        </tr>
-    `).join("");
-
-    document.getElementById("tokenTable").innerHTML =
-        rows || `<tr><td colspan="9" class="empty">No tokens found</td></tr>`;
-
-    const recent = [...tokens].reverse().slice(0, 8);
-
-    document.getElementById("dashboardTokens").innerHTML =
-        recent.length
-            ? recent.map(token => `
-                <tr>
-                    <td>#${token.tokenNumber}</td>
-                    <td>${escapeHTML(patientName(token.patient?.id))}</td>
-                    <td>${escapeHTML(doctorName(token.doctor?.id))}</td>
-                    <td>${escapeHTML(token.tokenDate)}</td>
-                    <td>${getStatusBadge(token.status)}</td>
-                    <td>${token.estimatedWaitTime} min</td>
-                </tr>
-            `).join("")
-            : `<tr><td colspan="6" class="empty">No tokens available</td></tr>`;
-}
-
-async function loadDashboard() {
     try {
-        await Promise.all([
-            loadDoctors(),
-            loadPatients()
-        ]);
+        const data = await apiRequest(`${API}/patient/getall`);
 
-        await loadTokens();
+        patients = Array.isArray(data) ? data : [];
+
+        const table = document.getElementById("patientTable");
+
+        if (table) {
+            if (patients.length === 0) {
+                table.innerHTML =
+                    '<tr><td colspan="6">No patients found</td></tr>';
+            } else {
+                table.innerHTML = patients.map(patient => `
+                    <tr>
+                        <td>${escapeHTML(getId(patient))}</td>
+                        <td>${escapeHTML(getValue(patient, "patientName", "PatientName"))}</td>
+                        <td>${escapeHTML(getValue(patient, "age", "Age"))}</td>
+                        <td>${escapeHTML(getValue(patient, "gender", "Gender"))}</td>
+                        <td>${escapeHTML(getValue(patient, "contactNumber", "ContactNumber"))}</td>
+                        <td>
+                            <button class="action-btn edit-btn"
+                                onclick="editPatient(${getId(patient)})">
+                                Edit
+                            </button>
+
+                            <button class="action-btn delete-btn"
+                                onclick="deletePatient(${getId(patient)})">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                `).join("");
+            }
+        }
+
+        updatePatientSelect();
+
+        document.getElementById("patientCount").textContent =
+            patients.length;
+
     } catch (error) {
-        console.error(error);
-        showToast("Unable to load data. Check backend connection.", true);
+        console.error("Patient loading error:", error);
+        showToast("Unable to load patients", true);
     }
 }
 
-// CREATE PATIENT
-document.getElementById("patientForm").addEventListener("submit", async event => {
+// CREATE AND UPDATE PATIENT
+
+document.getElementById("patientForm").addEventListener("submit", async function(event) {
     event.preventDefault();
 
-    const data = {
+    const id = document.getElementById("patientId").value;
+
+    const patient = {
         patientName: document.getElementById("patientName").value.trim(),
         age: Number(document.getElementById("patientAge").value),
         gender: document.getElementById("patientGender").value,
@@ -217,149 +179,638 @@ document.getElementById("patientForm").addEventListener("submit", async event =>
     };
 
     try {
-        await apiRequest(`${API}/patient/create`, {
-            method: "POST",
-            body: JSON.stringify(data)
-        });
+        if (id) {
+            // Backend expects PUT /update, not /update/{id}
+            const updatedPatient = {
+                id: Number(id),
+                ...patient
+            };
 
-        event.target.reset();
-        showToast("Patient added successfully!");
+            await apiRequest(
+                `${API}/patient/update`,
+                "PUT",
+                updatedPatient
+            );
+
+            showToast("Patient updated successfully");
+
+        } else {
+            await apiRequest(
+                `${API}/patient/create`,
+                "POST",
+                patient
+            );
+
+            showToast("Patient added successfully");
+        }
+
+        resetPatientForm();
+
         await loadPatients();
+        await loadDashboard();
+
     } catch (error) {
-        console.error(error);
-        showToast("Unable to add patient.", true);
+        console.error("Patient save error:", error);
+        showToast(error.message || "Patient operation failed", true);
     }
 });
 
-// CREATE DOCTOR
-document.getElementById("doctorForm").addEventListener("submit", async event => {
-    event.preventDefault();
+// EDIT PATIENT
 
-    const data = {
-        doctorName: document.getElementById("doctorName").value.trim(),
-        specialization: document.getElementById("specialization").value.trim(),
-        averageConsultationTime: Number(document.getElementById("consultationTime").value),
-        currentServingToken: Number(document.getElementById("currentToken").value)
-    };
+function editPatient(id) {
+    const patient = patients.find(
+        item => Number(getId(item)) === Number(id)
+    );
 
-    try {
-        await apiRequest(`${API}/doctor/create`, {
-            method: "POST",
-            body: JSON.stringify(data)
-        });
-
-        event.target.reset();
-        showToast("Doctor added successfully!");
-        await loadDoctors();
-    } catch (error) {
-        console.error(error);
-        showToast("Unable to add doctor.", true);
-    }
-});
-
-// GENERATE TOKEN
-document.getElementById("tokenForm").addEventListener("submit", async event => {
-    event.preventDefault();
-
-    const doctorId = document.getElementById("tokenDoctor").value;
-    const patientId = document.getElementById("tokenPatient").value;
-    const type = document.getElementById("tokenType").value;
-
-    if (!doctorId || !patientId) {
-        showToast("Please select doctor and patient.", true);
+    if (!patient) {
+        showToast("Patient not found", true);
         return;
     }
 
-    const endpoint = type === "priority" ? "priority" : "generate";
+    document.getElementById("patientId").value = getId(patient);
 
-    try {
-        await apiRequest(
-            `${API}/token/${endpoint}?doctorId=${doctorId}&patientId=${patientId}`,
-            { method: "POST" }
-        );
+    document.getElementById("patientName").value =
+        getValue(patient, "patientName", "PatientName") ?? "";
 
-        showToast("Token generated successfully!");
-        await loadTokens();
-    } catch (error) {
-        console.error(error);
-        showToast(error.message || "Unable to generate token.", true);
-    }
-});
+    document.getElementById("patientAge").value =
+        getValue(patient, "age", "Age") ?? "";
 
-// ADVANCE QUEUE
-async function advanceQueue() {
-    const doctorId = document.getElementById("advanceDoctor").value;
+    document.getElementById("patientGender").value =
+        getValue(patient, "gender", "Gender") ?? "";
 
-    if (!doctorId) {
-        showToast("Please select a doctor.", true);
-        return;
-    }
+    document.getElementById("patientContact").value =
+        getValue(patient, "contactNumber", "ContactNumber") ?? "";
 
-    try {
-        await apiRequest(`${API}/token/advance/${doctorId}`, {
-            method: "PUT"
-        });
+    document.getElementById("patientFormTitle").textContent =
+        "Update Patient";
 
-        showToast("Next token is now serving!");
-        await loadTokens();
-        await loadDoctors();
-    } catch (error) {
-        console.error(error);
-        showToast(error.message || "Unable to advance queue.", true);
-    }
+    document.getElementById("patientSubmitBtn").textContent =
+        "Update Patient";
+
+    showSection("patients", document.querySelectorAll(".tab")[1]);
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 // DELETE PATIENT
+
 async function deletePatient(id) {
-    if (!confirm("Are you sure you want to delete this patient?")) return;
+    if (!confirm("Are you sure you want to delete this patient?")) {
+        return;
+    }
 
     try {
-        await apiRequest(`${API}/patient/delete/${id}`, {
-            method: "DELETE"
-        });
+        await apiRequest(
+            `${API}/patient/delete/${id}`,
+            "DELETE"
+        );
 
-        showToast("Patient deleted successfully!");
+        showToast("Patient deleted successfully");
+
         await loadPatients();
+        await loadDashboard();
+
     } catch (error) {
-        console.error(error);
-        showToast("Unable to delete patient. Check if tokens are linked.", true);
+        console.error("Patient delete error:", error);
+        showToast(error.message || "Unable to delete patient", true);
     }
 }
 
-// DELETE DOCTOR
-async function deleteDoctor(id) {
-    if (!confirm("Are you sure you want to delete this doctor?")) return;
+// RESET PATIENT FORM
+
+function resetPatientForm() {
+    document.getElementById("patientForm").reset();
+
+    document.getElementById("patientId").value = "";
+
+    document.getElementById("patientFormTitle").textContent =
+        "Add Patient";
+
+    document.getElementById("patientSubmitBtn").textContent =
+        "Add Patient";
+}
+
+// ==================================================
+// DOCTOR CRUD
+// ==================================================
+
+async function loadDoctors() {
+    try {
+        const data = await apiRequest(`${API}/doctor/getall`);
+
+        doctors = Array.isArray(data) ? data : [];
+
+        const table = document.getElementById("doctorTable");
+
+        if (table) {
+            if (doctors.length === 0) {
+                table.innerHTML =
+                    '<tr><td colspan="6">No doctors found</td></tr>';
+            } else {
+                table.innerHTML = doctors.map(doctor => `
+                    <tr>
+                        <td>${escapeHTML(getId(doctor))}</td>
+                        <td>${escapeHTML(getValue(doctor, "doctorName", "DoctorName"))}</td>
+                        <td>${escapeHTML(getValue(doctor, "specialization", "Specialization"))}</td>
+                        <td>${escapeHTML(getValue(doctor, "averageConsultationTime", "AverageConsultationTime"))}</td>
+                        <td>${escapeHTML(getValue(doctor, "currentServingToken", "CurrentServingToken"))}</td>
+                        <td>
+                            <button class="action-btn edit-btn"
+                                onclick="editDoctor(${getId(doctor)})">
+                                Edit
+                            </button>
+
+                            <button class="action-btn delete-btn"
+                                onclick="deleteDoctor(${getId(doctor)})">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                `).join("");
+            }
+        }
+
+        updateDoctorSelect();
+
+        document.getElementById("doctorCount").textContent =
+            doctors.length;
+
+    } catch (error) {
+        console.error("Doctor loading error:", error);
+        showToast("Unable to load doctors", true);
+    }
+}
+
+// CREATE AND UPDATE DOCTOR
+
+document.getElementById("doctorForm").addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const id = document.getElementById("doctorId").value;
+
+    const doctor = {
+        doctorName: document.getElementById("doctorName").value.trim(),
+        specialization: document.getElementById("doctorSpecialization").value.trim(),
+        averageConsultationTime: Number(document.getElementById("doctorTime").value),
+        currentServingToken: Number(document.getElementById("doctorCurrentToken").value)
+    };
 
     try {
-        await apiRequest(`${API}/doctor/delete/${id}`, {
-            method: "DELETE"
-        });
+        if (id) {
+            await apiRequest(
+                `${API}/doctor/update`,
+                "PUT",
+                {
+                    id: Number(id),
+                    ...doctor
+                }
+            );
 
-        showToast("Doctor deleted successfully!");
+            showToast("Doctor updated successfully");
+
+        } else {
+            await apiRequest(
+                `${API}/doctor/create`,
+                "POST",
+                doctor
+            );
+
+            showToast("Doctor added successfully");
+        }
+
+        resetDoctorForm();
+
         await loadDoctors();
+        await loadDashboard();
+
     } catch (error) {
-        console.error(error);
-        showToast("Unable to delete doctor. Check if tokens are linked.", true);
+        console.error("Doctor save error:", error);
+        showToast(error.message || "Doctor operation failed", true);
+    }
+});
+
+// EDIT DOCTOR
+
+function editDoctor(id) {
+    const doctor = doctors.find(
+        item => Number(getId(item)) === Number(id)
+    );
+
+    if (!doctor) {
+        showToast("Doctor not found", true);
+        return;
+    }
+
+    document.getElementById("doctorId").value = getId(doctor);
+
+    document.getElementById("doctorName").value =
+        getValue(doctor, "doctorName", "DoctorName") ?? "";
+
+    document.getElementById("doctorSpecialization").value =
+        getValue(doctor, "specialization", "Specialization") ?? "";
+
+    document.getElementById("doctorTime").value =
+        getValue(doctor, "averageConsultationTime", "AverageConsultationTime") ?? "";
+
+    document.getElementById("doctorCurrentToken").value =
+        getValue(doctor, "currentServingToken", "CurrentServingToken") ?? 0;
+
+    document.getElementById("doctorFormTitle").textContent =
+        "Update Doctor";
+
+    document.getElementById("doctorSubmitBtn").textContent =
+        "Update Doctor";
+
+    showSection("doctors", document.querySelectorAll(".tab")[2]);
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// DELETE DOCTOR
+
+async function deleteDoctor(id) {
+    if (!confirm("Are you sure you want to delete this doctor?")) {
+        return;
+    }
+
+    try {
+        await apiRequest(
+            `${API}/doctor/delete/${id}`,
+            "DELETE"
+        );
+
+        showToast("Doctor deleted successfully");
+
+        await loadDoctors();
+        await loadDashboard();
+
+    } catch (error) {
+        console.error("Doctor delete error:", error);
+        showToast(error.message || "Unable to delete doctor", true);
+    }
+}
+
+// RESET DOCTOR FORM
+
+function resetDoctorForm() {
+    document.getElementById("doctorForm").reset();
+
+    document.getElementById("doctorId").value = "";
+
+    document.getElementById("doctorCurrentToken").value = 0;
+
+    document.getElementById("doctorFormTitle").textContent =
+        "Add Doctor";
+
+    document.getElementById("doctorSubmitBtn").textContent =
+        "Add Doctor";
+}
+
+// ==================================================
+// TOKEN DROPDOWNS
+// ==================================================
+
+function updatePatientSelect() {
+    const select = document.getElementById("tokenPatient");
+
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Select Patient</option>';
+
+    patients.forEach(patient => {
+        const id = getId(patient);
+        const name = getValue(patient, "patientName", "PatientName");
+
+        select.innerHTML += `
+            <option value="${id}">
+                ${escapeHTML(name)} (ID: ${id})
+            </option>
+        `;
+    });
+}
+
+function updateDoctorSelect() {
+    const select = document.getElementById("tokenDoctor");
+
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Select Doctor</option>';
+
+    doctors.forEach(doctor => {
+        const id = getId(doctor);
+        const name = getValue(doctor, "doctorName", "DoctorName");
+
+        select.innerHTML += `
+            <option value="${id}">
+                ${escapeHTML(name)} (ID: ${id})
+            </option>
+        `;
+    });
+}
+
+// ==================================================
+// TOKEN CRUD
+// ==================================================
+
+async function loadTokens() {
+    try {
+        const data = await apiRequest(`${API}/token/getall`);
+
+        tokens = Array.isArray(data) ? data : [];
+
+        const table = document.getElementById("tokenTable");
+
+        if (table) {
+            if (tokens.length === 0) {
+                table.innerHTML =
+                    '<tr><td colspan="9">No tokens found</td></tr>';
+            } else {
+                table.innerHTML = tokens.map(token => {
+                    const id = getId(token);
+
+                    const priority =
+                        getValue(token, "isPriority", "IsPriority");
+
+                    const status =
+                        getValue(token, "status", "Status");
+
+                    return `
+                        <tr>
+                            <td>${escapeHTML(id)}</td>
+                            <td>${escapeHTML(getValue(token, "tokenNumber", "TokenNumber"))}</td>
+                            <td>${escapeHTML(getPatientName(token))}</td>
+                            <td>${escapeHTML(getDoctorName(token))}</td>
+                            <td>${escapeHTML(getValue(token, "tokenDate", "TokenDate"))}</td>
+                            <td>${priority ? "Yes" : "No"}</td>
+                            <td><span class="status-badge">${escapeHTML(status)}</span></td>
+                            <td>${escapeHTML(getValue(token, "estimatedWaitTime", "EstimatedWaitTime"))}</td>
+                            <td>
+                                <button class="action-btn edit-btn"
+                                    onclick="editToken(${id})">
+                                    Edit
+                                </button>
+
+                                <button class="action-btn priority-btn"
+                                    onclick="makePriority(${id})">
+                                    Priority
+                                </button>
+
+                                <button class="action-btn delete-btn"
+                                    onclick="deleteToken(${id})">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+        }
+
+        document.getElementById("tokenCount").textContent =
+            tokens.length;
+
+        const waitingCount = tokens.filter(token =>
+            String(getValue(token, "status", "Status")).toUpperCase() === "WAITING"
+        ).length;
+
+        document.getElementById("waitingCount").textContent =
+            waitingCount;
+
+    } catch (error) {
+        console.error("Token loading error:", error);
+        showToast("Unable to load tokens", true);
+    }
+}
+
+// GENERATE TOKEN
+
+document.getElementById("tokenForm").addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const patientId =
+        document.getElementById("tokenPatient").value;
+
+    const doctorId =
+        document.getElementById("tokenDoctor").value;
+
+    if (!patientId || !doctorId) {
+        showToast("Please select patient and doctor", true);
+        return;
+    }
+
+    try {
+        await apiRequest(
+            `${API}/token/generate?doctorId=${doctorId}&patientId=${patientId}`,
+            "POST"
+        );
+
+        showToast("Token generated successfully");
+
+        document.getElementById("tokenForm").reset();
+
+        await loadTokens();
+        await loadDashboard();
+
+    } catch (error) {
+        console.error("Token generation error:", error);
+        showToast(error.message || "Token generation failed", true);
+    }
+});
+
+// EDIT TOKEN STATUS
+
+function editToken(id) {
+    const token = tokens.find(
+        item => Number(getId(item)) === Number(id)
+    );
+
+    if (!token) return;
+
+    const currentStatus =
+        getValue(token, "status", "Status") ?? "WAITING";
+
+    const newStatus = prompt(
+        "Enter status: WAITING, SERVING, COMPLETED, CANCELLED",
+        currentStatus
+    );
+
+    if (newStatus === null) return;
+
+    const allowedStatuses = [
+        "WAITING",
+        "SERVING",
+        "COMPLETED",
+        "CANCELLED"
+    ];
+
+    const status = newStatus.trim().toUpperCase();
+
+    if (!allowedStatuses.includes(status)) {
+        showToast("Invalid status", true);
+        return;
+    }
+
+    updateTokenStatus(id, status);
+}
+
+async function updateTokenStatus(id, status) {
+    const token = tokens.find(
+        item => Number(getId(item)) === Number(id)
+    );
+
+    if (!token) return;
+
+    const patient = getValue(token, "patient", "Patient");
+    const doctor = getValue(token, "doctor", "Doctor");
+
+    const updatedToken = {
+        id: Number(id),
+        tokenNumber: getValue(token, "tokenNumber", "TokenNumber"),
+        tokenDate: getValue(token, "tokenDate", "TokenDate"),
+        isPriority: getValue(token, "isPriority", "IsPriority"),
+        status: status,
+        estimatedWaitTime: getValue(token, "estimatedWaitTime", "EstimatedWaitTime"),
+        patient: patient ? { id: getId(patient) } : null,
+        doctor: doctor ? { id: getId(doctor) } : null
+    };
+
+    try {
+        await apiRequest(
+            `${API}/token/update/${id}`,
+            "PUT",
+            updatedToken
+        );
+
+        showToast("Token updated successfully");
+
+        await loadTokens();
+        await loadDashboard();
+
+    } catch (error) {
+        console.error("Token update error:", error);
+        showToast(error.message || "Token update failed", true);
+    }
+}
+
+// PRIORITY TOKEN
+
+async function makePriority(id) {
+    const token = tokens.find(
+        item => Number(getId(item)) === Number(id)
+    );
+
+    if (!token) return;
+
+    const patient = getValue(token, "patient", "Patient");
+    const doctor = getValue(token, "doctor", "Doctor");
+
+    if (!patient || !doctor) {
+        showToast("Patient or doctor information missing", true);
+        return;
+    }
+
+    try {
+        await apiRequest(
+            `${API}/token/priority?doctorId=${getId(doctor)}&patientId=${getId(patient)}`,
+            "POST"
+        );
+
+        showToast("Priority request submitted");
+
+        await loadTokens();
+        await loadDashboard();
+
+    } catch (error) {
+        console.error("Priority error:", error);
+        showToast(error.message || "Priority operation failed", true);
     }
 }
 
 // DELETE TOKEN
+
 async function deleteToken(id) {
-    if (!confirm("Are you sure you want to delete this token?")) return;
+    if (!confirm("Are you sure you want to delete this token?")) {
+        return;
+    }
 
     try {
-        await apiRequest(`${API}/token/delete/${id}`, {
-            method: "DELETE"
-        });
+        await apiRequest(
+            `${API}/token/delete/${id}`,
+            "DELETE"
+        );
 
-        showToast("Token deleted successfully!");
+        showToast("Token deleted successfully");
+
         await loadTokens();
+        await loadDashboard();
+
     } catch (error) {
-        console.error(error);
-        showToast("Unable to delete token.", true);
+        console.error("Token delete error:", error);
+        showToast(error.message || "Unable to delete token", true);
     }
 }
 
-// INITIAL LOAD
-document.addEventListener("DOMContentLoaded", loadDashboard);
-```
+// ==================================================
+// DASHBOARD
+// ==================================================
+
+async function loadDashboard() {
+    try {
+        await Promise.all([
+            loadPatients(),
+            loadDoctors(),
+            loadTokens()
+        ]);
+
+        document.getElementById("patientCount").textContent =
+            patients.length;
+
+        document.getElementById("doctorCount").textContent =
+            doctors.length;
+
+        document.getElementById("tokenCount").textContent =
+            tokens.length;
+
+        const waiting = tokens.filter(token =>
+            String(getValue(token, "status", "Status")).toUpperCase() === "WAITING"
+        );
+
+        document.getElementById("waitingCount").textContent =
+            waiting.length;
+
+        const recent = [...tokens].reverse().slice(0, 5);
+
+        const table =
+            document.getElementById("dashboardTokenTable");
+
+        if (recent.length === 0) {
+            table.innerHTML =
+                '<tr><td colspan="5">No tokens available</td></tr>';
+        } else {
+            table.innerHTML = recent.map(token => `
+                <tr>
+                    <td>${escapeHTML(getValue(token, "tokenNumber", "TokenNumber"))}</td>
+                    <td>${escapeHTML(getPatientName(token))}</td>
+                    <td>${escapeHTML(getDoctorName(token))}</td>
+                    <td>${escapeHTML(getValue(token, "tokenDate", "TokenDate"))}</td>
+                    <td><span class="status-badge">${escapeHTML(getValue(token, "status", "Status"))}</span></td>
+                </tr>
+            `).join("");
+        }
+
+    } catch (error) {
+        console.error("Dashboard error:", error);
+        showToast("Unable to load dashboard", true);
+    }
+}
+
+async function refreshDashboard() {
+    await loadDashboard();
+    showToast("Dashboard refreshed");
+}
+
+// ---------------- INITIAL LOAD ----------------
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadDashboard();
+});

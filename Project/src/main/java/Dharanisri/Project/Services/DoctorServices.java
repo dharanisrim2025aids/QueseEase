@@ -13,25 +13,33 @@ public class DoctorServices {
     @Autowired
     private DoctorRepository doctorrepository;
 
-    public Doctor createdoctor(Doctor data){
-        Doctor result = doctorrepository.save(data);
-        return result;
-    }
-
-    public List<Doctor> getalldoctor(){
-        return doctorrepository.findAll();
-    }
-
-    public Doctor updatedoctor(Doctor data){
+    public Doctor createdoctor(Doctor data) {
         return doctorrepository.save(data);
     }
 
-    public Doctor getbyid(Long Id){
-        return doctorrepository.findById(Id)
+    public List<Doctor> getalldoctor() {
+        return doctorrepository.findAll();
+    }
+
+    public Doctor updatedoctor(Doctor data) {
+        if (data.getId() == null ||
+                !doctorrepository.existsById(data.getId())) {
+            throw new RuntimeException("Doctor not found");
+        }
+
+        return doctorrepository.save(data);
+    }
+
+    public Doctor getbyid(Long id) {
+        return doctorrepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Doctor not found"));
     }
 
-    public void deletedoctor(Long Id){
-        doctorrepository.deleteById(Id);
+    public void deletedoctor(Long id) {
+        if (!doctorrepository.existsById(id)) {
+            throw new RuntimeException("Doctor not found");
+        }
+
+        doctorrepository.deleteById(id);
     }
 }

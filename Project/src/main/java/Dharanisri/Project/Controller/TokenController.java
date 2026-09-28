@@ -1,10 +1,12 @@
 package Dharanisri.Project.Controller;
 
+import Dharanisri.Project.DTO.*;
 import Dharanisri.Project.Models.Token;
+import Dharanisri.Project.Models.Patient;
+import Dharanisri.Project.Models.Doctor;
 import Dharanisri.Project.Services.TokenServices;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,102 +14,110 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/token")
+@CrossOrigin(origins = "*")
 public class TokenController {
 
     @Autowired
     private TokenServices tokenservices;
 
-    // Create Token
-    @PostMapping("/create")
-    public ResponseEntity<Token> createToken(@RequestBody Token token) {
+    private TokenResponseDTO convertToDTO(Token token) {
 
-        Token result = tokenservices.createToken(token);
+        Patient patient = token.getPatient();
+        Doctor doctor = token.getDoctor();
 
-        return new ResponseEntity<>(result, HttpStatus.CREATED);
+        PatientResponseDTO patientDTO = new PatientResponseDTO(
+                patient.getId(),
+                patient.getPatientName(),
+                patient.getAge(),
+                patient.getGender(),
+                patient.getContactNumber()
+        );
+
+        DoctorResponseDTO doctorDTO = new DoctorResponseDTO(
+                doctor.getId(),
+                doctor.getDoctorName(),
+                doctor.getSpecialization(),
+                doctor.getAverageConsultationTime(),
+                doctor.getCurrentServingToken()
+        );
+
+        return new TokenResponseDTO(
+                token.getId(),
+                token.getTokenNumber(),
+                token.getTokenDate(),
+                token.isPriority(),
+                token.getStatus(),
+                token.getEstimatedWaitTime(),
+                patientDTO,
+                doctorDTO
+        );
     }
 
-    // Get All Tokens
     @GetMapping("/getall")
-    public ResponseEntity<List<Token>> getAllTokens() {
+    public ResponseEntity<List<TokenResponseDTO>> getalltoken() {
 
-        List<Token> result = tokenservices.getAllTokens();
+        List<TokenResponseDTO> result =
+                tokenservices.getalltoken()
+                        .stream()
+                        .map(this::convertToDTO)
+                        .toList();
 
-        return new ResponseEntity<>(result, HttpStatus.OK);
+        return ResponseEntity.ok(result);
     }
 
-    // Get Token By ID
     @GetMapping("/getbyid/{id}")
-    public ResponseEntity<Token> getTokenById(@PathVariable Long id) {
+    public ResponseEntity<TokenResponseDTO> getbyid(
+            @PathVariable Long id) {
 
-        Token result = tokenservices.getTokenById(id);
-
-        return new ResponseEntity<>(result, HttpStatus.OK);
-    }
-
-    // Update Token
-    @PutMapping("/update/{id}")
-    public ResponseEntity<Token> updateToken(
-            @PathVariable Long id,
-            @RequestBody Token token) {
-
-        Token result = tokenservices.updateToken(id, token);
-
-        return new ResponseEntity<>(result, HttpStatus.ACCEPTED);
-    }
-
-    // Delete Token
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deleteToken(@PathVariable Long id) {
-
-        tokenservices.deleteToken(id);
-
-        return new ResponseEntity<>(
-                "Token deleted successfully",
-                HttpStatus.OK
+        return ResponseEntity.ok(
+                convertToDTO(tokenservices.getbyid(id))
         );
     }
 
-    // Generate Normal Token
     @PostMapping("/generate")
-    public ResponseEntity<Token> generateToken(
+    public ResponseEntity<TokenResponseDTO> generatetoken(
             @RequestParam Long doctorId,
             @RequestParam Long patientId) {
 
-        Token result = tokenservices.generatetoken(doctorId, patientId);
+        Token result =
+                tokenservices.generatetoken(doctorId, patientId);
 
-        return new ResponseEntity<>(result, HttpStatus.CREATED);
+        return ResponseEntity.status(201).body(convertToDTO(result));
     }
 
-    // Generate Priority Token
+    @PutMapping("/update/{id}")
+    public ResponseEntity<TokenResponseDTO> updatetoken(
+            @PathVariable Long id,
+            @RequestBody TokenRequestDTO data) {
+
+        Token token = new Token();
+
+        token.setStatus(data.getStatus());
+        token.setPriority(data.isPriority());
+        token.setEstimatedWaitTime(data.getEstimatedWaitTime());
+
+        Token result = tokenservices.updatetoken(id, token);
+
+        return ResponseEntity.accepted().body(convertToDTO(result));
+    }
+
     @PostMapping("/priority")
-    public ResponseEntity<Token> generatePriorityToken(
+    public ResponseEntity<TokenResponseDTO> makepriority(
             @RequestParam Long doctorId,
             @RequestParam Long patientId) {
 
-        Token result = tokenservices.generatePriorityToken(
-                doctorId, patientId
-        );
+        Token result =
+                tokenservices.makepriority(doctorId, patientId);
 
-        return new ResponseEntity<>(result, HttpStatus.CREATED);
+        return ResponseEntity.ok(convertToDTO(result));
     }
 
-    // Advance Serving Token
-    @PutMapping("/advance/{doctorId}")
-    public ResponseEntity<Token> advanceToken(
-            @PathVariable Long doctorId) {
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<String> deletetoken(
+            @PathVariable Long id) {
 
-        Token result = tokenservices.advanceToken(doctorId);
+        tokenservices.deletetoken(id);
 
-        return new ResponseEntity<>(result, HttpStatus.OK);
-    }
-
-    // Get Daily Token History
-    @GetMapping("/history/{doctorId}")
-    public ResponseEntity<List<Token>> getDailyHistory(
-            @PathVariable Long doctorId) {
-
-        List<Token> result = tokenservices.getDailyHistory(doctorId);
-
-        return new ResponseEntity<>(result, HttpStatus.OK);
+        return ResponseEntity.ok("Token deleted successfully");
     }
 }

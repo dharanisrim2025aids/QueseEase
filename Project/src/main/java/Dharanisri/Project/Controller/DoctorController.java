@@ -1,105 +1,95 @@
-
 package Dharanisri.Project.Controller;
 
-import Dharanisri.Project.DTO.DoctorDTO;
+import Dharanisri.Project.DTO.DoctorRequestDTO;
+import Dharanisri.Project.DTO.DoctorResponseDTO;
 import Dharanisri.Project.Models.Doctor;
 import Dharanisri.Project.Services.DoctorServices;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/doctor")
+@CrossOrigin(origins = "*")
 public class DoctorController {
 
     @Autowired
     private DoctorServices doctorservices;
 
-    // Convert Doctor Entity to DoctorDTO
-    private DoctorDTO convertToDTO(Doctor doctor) {
-        DoctorDTO dto = new DoctorDTO();
-
-        dto.setId(doctor.getId());
-        dto.setDoctorName(doctor.getDoctorName());
-        dto.setSpecialization(doctor.getSpecialization());
-        dto.setAverageConsultationTime(doctor.getAverageConsultationTime());
-        dto.setCurrentServingToken(doctor.getCurrentServingToken());
-
-        return dto;
+    private DoctorResponseDTO convertToDTO(Doctor doctor) {
+        return new DoctorResponseDTO(
+                doctor.getId(),
+                doctor.getDoctorName(),
+                doctor.getSpecialization(),
+                doctor.getAverageConsultationTime(),
+                doctor.getCurrentServingToken()
+        );
     }
 
-    // Convert DoctorDTO to Doctor Entity
-    private Doctor convertToEntity(DoctorDTO dto) {
+    private Doctor convertToEntity(DoctorRequestDTO dto) {
         Doctor doctor = new Doctor();
 
         doctor.setId(dto.getId());
         doctor.setDoctorName(dto.getDoctorName());
         doctor.setSpecialization(dto.getSpecialization());
-        doctor.setAverageConsultationTime(dto.getAverageConsultationTime());
+        doctor.setAverageConsultationTime(
+                dto.getAverageConsultationTime()
+        );
         doctor.setCurrentServingToken(dto.getCurrentServingToken());
 
         return doctor;
     }
 
     @PostMapping("/create")
-    ResponseEntity<DoctorDTO> createdoctor(@RequestBody DoctorDTO body) {
-        Doctor doctor = convertToEntity(body);
-        Doctor savedDoctor = doctorservices.createdoctor(doctor);
+    public ResponseEntity<DoctorResponseDTO> createdoctor(
+            @RequestBody DoctorRequestDTO data) {
 
-        return new ResponseEntity<>(
-                convertToDTO(savedDoctor),
-                HttpStatus.CREATED
-        );
+        Doctor result =
+                doctorservices.createdoctor(convertToEntity(data));
+
+        return ResponseEntity.status(201).body(convertToDTO(result));
     }
 
     @GetMapping("/getall")
-    ResponseEntity<List<DoctorDTO>> getall() {
-        List<DoctorDTO> doctors = doctorservices.getalldoctor()
-                .stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+    public ResponseEntity<List<DoctorResponseDTO>> getalldoctor() {
 
-        return new ResponseEntity<>(doctors, HttpStatus.OK);
-    }
+        List<DoctorResponseDTO> result =
+                doctorservices.getalldoctor()
+                        .stream()
+                        .map(this::convertToDTO)
+                        .toList();
 
-    @PutMapping("/update")
-    ResponseEntity<DoctorDTO> updatedoctor(@RequestBody DoctorDTO data) {
-        Doctor doctor = convertToEntity(data);
-        Doctor updatedDoctor = doctorservices.updatedoctor(doctor);
-
-        return new ResponseEntity<>(
-                convertToDTO(updatedDoctor),
-                HttpStatus.ACCEPTED
-        );
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/getbyid/{id}")
-    ResponseEntity<?> getbyId(@PathVariable long id) {
-        try {
-            Doctor response = doctorservices.getbyid(id);
+    public ResponseEntity<DoctorResponseDTO> getbyid(
+            @PathVariable Long id) {
 
-            return new ResponseEntity<>(
-                    convertToDTO(response),
-                    HttpStatus.OK
-            );
+        return ResponseEntity.ok(
+                convertToDTO(doctorservices.getbyid(id))
+        );
+    }
 
-        } catch (RuntimeException exception) {
-            return new ResponseEntity<>("not found", HttpStatus.NOT_FOUND);
-        }
+    @PutMapping("/update")
+    public ResponseEntity<DoctorResponseDTO> updatedoctor(
+            @RequestBody DoctorRequestDTO data) {
+
+        Doctor result =
+                doctorservices.updatedoctor(convertToEntity(data));
+
+        return ResponseEntity.accepted().body(convertToDTO(result));
     }
 
     @DeleteMapping("/delete/{id}")
-    ResponseEntity<String> deletedoctor(@PathVariable long id) {
+    public ResponseEntity<String> deletedoctor(
+            @PathVariable Long id) {
+
         doctorservices.deletedoctor(id);
 
-        return new ResponseEntity<>(
-                "Doctor deleted successfully",
-                HttpStatus.OK
-        );
+        return ResponseEntity.ok("Doctor deleted successfully");
     }
 }
