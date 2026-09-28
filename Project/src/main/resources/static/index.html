@@ -1,0 +1,272 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QueueEase - Smart Hospital Queue</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+    <div class="brand">
+        <div class="logo">Q</div>
+        <div>
+            <h1>QueueEase</h1>
+            <p>Smart Hospital Queue Management</p>
+        </div>
+    </div>
+    <span class="status"><span class="dot"></span> System Online</span>
+</header>
+
+<div class="container">
+
+    <section class="welcome">
+        <div>
+            <h2>Welcome to QueueEase 👋</h2>
+            <p>Manage patients, doctors and tokens from one place.</p>
+        </div>
+        <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+    </section>
+
+    <section class="stats">
+        <div class="stat-card">
+            <div class="stat-icon blue">👨‍⚕️</div>
+            <p>Total Doctors</p>
+            <h2 id="doctorCount">0</h2>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green">🧑</div>
+            <p>Total Patients</p>
+            <h2 id="patientCount">0</h2>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon orange">🎫</div>
+            <p>Total Tokens</p>
+            <h2 id="tokenCount">0</h2>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple">⏳</div>
+            <p>Waiting Tokens</p>
+            <h2 id="waitingCount">0</h2>
+        </div>
+    </section>
+
+    <nav class="tabs">
+        <button class="tab active" onclick="showSection('dashboard', this)">Dashboard</button>
+        <button class="tab" onclick="showSection('patients', this)">Patients</button>
+        <button class="tab" onclick="showSection('doctors', this)">Doctors</button>
+        <button class="tab" onclick="showSection('tokens', this)">Tokens</button>
+    </nav>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="section">
+        <div class="section-heading">
+            <div>
+                <h2>Recent Tokens</h2>
+                <p>Overview of the current queue</p>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th>Token No.</th>
+                    <th>Patient</th>
+                    <th>Doctor</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Wait Time</th>
+                </tr>
+                </thead>
+                <tbody id="dashboardTokens">
+                <tr><td colspan="6" class="empty">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- PATIENTS -->
+    <section id="patients" class="section hidden">
+        <div class="section-heading">
+            <div>
+                <h2>Patient Management</h2>
+                <p>Add and view patient information</p>
+            </div>
+        </div>
+
+        <form id="patientForm" class="form-card">
+            <h3>Add New Patient</h3>
+            <div class="form-grid">
+                <div class="field">
+                    <label>Patient Name</label>
+                    <input type="text" id="patientName" placeholder="Enter patient name" required>
+                </div>
+                <div class="field">
+                    <label>Age</label>
+                    <input type="number" id="patientAge" min="1" required>
+                </div>
+                <div class="field">
+                    <label>Gender</label>
+                    <select id="patientGender" required>
+                        <option value="">Select gender</option>
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Contact Number</label>
+                    <input type="tel" id="patientContact" placeholder="Enter contact number" required>
+                </div>
+            </div>
+            <button type="submit" class="primary-btn">+ Add Patient</button>
+        </form>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Gender</th>
+                    <th>Contact</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="patientTable"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- DOCTORS -->
+    <section id="doctors" class="section hidden">
+        <div class="section-heading">
+            <div>
+                <h2>Doctor Management</h2>
+                <p>Add and view doctor information</p>
+            </div>
+        </div>
+
+        <form id="doctorForm" class="form-card">
+            <h3>Add New Doctor</h3>
+            <div class="form-grid">
+                <div class="field">
+                    <label>Doctor Name</label>
+                    <input type="text" id="doctorName" placeholder="Enter doctor name" required>
+                </div>
+                <div class="field">
+                    <label>Specialization</label>
+                    <input type="text" id="specialization" placeholder="e.g. Cardiology" required>
+                </div>
+                <div class="field">
+                    <label>Average Consultation Time (minutes)</label>
+                    <input type="number" id="consultationTime" min="1" required>
+                </div>
+                <div class="field">
+                    <label>Current Serving Token</label>
+                    <input type="number" id="currentToken" min="0" value="0" required>
+                </div>
+            </div>
+            <button type="submit" class="primary-btn">+ Add Doctor</button>
+        </form>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Doctor Name</th>
+                    <th>Specialization</th>
+                    <th>Consultation Time</th>
+                    <th>Current Token</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="doctorTable"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- TOKENS -->
+    <section id="tokens" class="section hidden">
+        <div class="section-heading">
+            <div>
+                <h2>Token Management</h2>
+                <p>Generate and manage patient tokens</p>
+            </div>
+        </div>
+
+        <form id="tokenForm" class="form-card">
+            <h3>Generate Token</h3>
+            <div class="form-grid">
+                <div class="field">
+                    <label>Select Doctor</label>
+                    <select id="tokenDoctor" required>
+                        <option value="">Select doctor</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Select Patient</label>
+                    <select id="tokenPatient" required>
+                        <option value="">Select patient</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Token Type</label>
+                    <select id="tokenType">
+                        <option value="normal">Normal Token</option>
+                        <option value="priority">Priority Token</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="primary-btn">Generate Token</button>
+        </form>
+
+        <div class="form-card advance-card">
+            <div>
+                <h3>Advance Queue</h3>
+                <p>Mark the current token completed and call the next patient.</p>
+            </div>
+            <div class="advance-controls">
+                <select id="advanceDoctor">
+                    <option value="">Select doctor</option>
+                </select>
+                <button class="secondary-btn" onclick="advanceQueue()">Call Next Token</button>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Token No.</th>
+                    <th>Patient</th>
+                    <th>Doctor</th>
+                    <th>Date</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Wait Time</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="tokenTable"></tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<footer>
+    <p>© 2026 QueueEase | Smart Hospital Queue Management System</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
+```

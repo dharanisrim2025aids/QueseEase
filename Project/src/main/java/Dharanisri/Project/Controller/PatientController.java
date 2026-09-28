@@ -1,4 +1,3 @@
-
 package Dharanisri.Project.Controller;
 
 import Dharanisri.Project.DTO.PatientDTO;
@@ -22,6 +21,7 @@ public class PatientController {
 
     // Convert Patient Entity to PatientDTO
     private PatientDTO convertToDTO(Patient patient) {
+
         PatientDTO dto = new PatientDTO();
 
         dto.setId(patient.getId());
@@ -35,6 +35,7 @@ public class PatientController {
 
     // Convert PatientDTO to Patient Entity
     private Patient convertToEntity(PatientDTO dto) {
+
         Patient patient = new Patient();
 
         patient.setId(dto.getId());
@@ -46,55 +47,64 @@ public class PatientController {
         return patient;
     }
 
+    // Create Patient
     @PostMapping("/create")
-    ResponseEntity<PatientDTO> createpatient(@RequestBody PatientDTO body) {
-        Patient patient = convertToEntity(body);
-        Patient savedPatient = patientservices.createpatient(patient);
+    public ResponseEntity<PatientDTO> createpatient(
+            @RequestBody PatientDTO data) {
+
+        Patient patient = convertToEntity(data);
+        Patient result = patientservices.createpatient(patient);
 
         return new ResponseEntity<>(
-                convertToDTO(savedPatient),
+                convertToDTO(result),
                 HttpStatus.CREATED
         );
     }
 
+    // Get All Patients
     @GetMapping("/getall")
-    ResponseEntity<List<PatientDTO>> getall() {
-        List<PatientDTO> patients = patientservices.getallpatient()
+    public ResponseEntity<List<PatientDTO>> getallpatient() {
+
+        List<PatientDTO> result = patientservices.getallpatient()
                 .stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
 
-        return new ResponseEntity<>(patients, HttpStatus.OK);
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
+    // Update Patient
     @PutMapping("/update")
-    ResponseEntity<PatientDTO> updatepatient(@RequestBody PatientDTO data) {
+    public ResponseEntity<PatientDTO> updatepatient(
+            @RequestBody PatientDTO data) {
+
         Patient patient = convertToEntity(data);
-        Patient updatedPatient = patientservices.updatepatient(patient);
+        Patient result = patientservices.updatepatient(patient);
 
         return new ResponseEntity<>(
-                convertToDTO(updatedPatient),
+                convertToDTO(result),
                 HttpStatus.ACCEPTED
         );
     }
 
+    // Get Patient By ID
     @GetMapping("/getbyid/{id}")
-    ResponseEntity<?> getbyId(@PathVariable long id) {
-        try {
-            Patient response = patientservices.getbyid(id);
+    public ResponseEntity<PatientDTO> getbyid(
+            @PathVariable Long id) {
 
-            return new ResponseEntity<>(
-                    convertToDTO(response),
-                    HttpStatus.OK
-            );
+        Patient result = patientservices.getbyid(id);
 
-        } catch (RuntimeException exception) {
-            return new ResponseEntity<>("not found", HttpStatus.NOT_FOUND);
-        }
+        return new ResponseEntity<>(
+                convertToDTO(result),
+                HttpStatus.OK
+        );
     }
 
+    // Delete Patient
     @DeleteMapping("/delete/{id}")
-    ResponseEntity<String> deletepatient(@PathVariable long id) {
+    public ResponseEntity<String> deletepatient(
+            @PathVariable Long id) {
+
         patientservices.deletepatient(id);
 
         return new ResponseEntity<>(

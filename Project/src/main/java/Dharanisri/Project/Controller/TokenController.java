@@ -1,13 +1,7 @@
-
 package Dharanisri.Project.Controller;
 
-import Dharanisri.Project.DTO.TokenDTO;
 import Dharanisri.Project.Models.Token;
-import Dharanisri.Project.Models.Doctor;
-import Dharanisri.Project.Models.Patient;
 import Dharanisri.Project.Services.TokenServices;
-import Dharanisri.Project.Services.DoctorServices;
-import Dharanisri.Project.Services.PatientServices;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -15,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/token")
@@ -24,94 +17,49 @@ public class TokenController {
     @Autowired
     private TokenServices tokenservices;
 
-    @Autowired
-    private DoctorServices doctorservices;
-
-    @Autowired
-    private PatientServices patientservices;
-
-    // Convert Token Entity to TokenDTO
-    private TokenDTO convertToDTO(Token token) {
-        TokenDTO dto = new TokenDTO();
-
-        dto.setId(token.getId());
-        dto.setTokenNumber(token.getTokenNumber());
-        dto.setTokenDate(token.getTokenDate());
-        dto.setIsPriority(token.isIsPriority());
-        dto.setStatus(token.getStatus());
-        dto.setEstimatedWaitTime(token.getEstimatedWaitTime());
-
-        if (token.getDoctor() != null) {
-            dto.setDoctorId(token.getDoctor().getId());
-        }
-
-        if (token.getPatient() != null) {
-            dto.setPatientId(token.getPatient().getId());
-        }
-
-        return dto;
-    }
-
-    // Convert TokenDTO to Token Entity
-    private Token convertToEntity(TokenDTO dto) {
-        Token token = new Token();
-
-        token.setId(dto.getId());
-        token.setTokenNumber(dto.getTokenNumber());
-        token.setTokenDate(dto.getTokenDate());
-        token.setIsPriority(dto.isIsPriority());
-        token.setStatus(dto.getStatus());
-        token.setEstimatedWaitTime(dto.getEstimatedWaitTime());
-
-        if (dto.getDoctorId() != null) {
-            Doctor doctor = doctorservices.getbyid(dto.getDoctorId());
-            token.setDoctor(doctor);
-        }
-
-        if (dto.getPatientId() != null) {
-            Patient patient = patientservices.getbyid(dto.getPatientId());
-            token.setPatient(patient);
-        }
-
-        return token;
-    }
-
+    // Create Token
     @PostMapping("/create")
-    public ResponseEntity<TokenDTO> createtoken(@RequestBody TokenDTO data) {
-        Token token = convertToEntity(data);
-        Token result = tokenservices.createtoken(token);
+    public ResponseEntity<Token> createToken(@RequestBody Token token) {
 
-        return new ResponseEntity<>(convertToDTO(result), HttpStatus.CREATED);
+        Token result = tokenservices.createToken(token);
+
+        return new ResponseEntity<>(result, HttpStatus.CREATED);
     }
 
+    // Get All Tokens
     @GetMapping("/getall")
-    public ResponseEntity<List<TokenDTO>> getalltoken() {
-        List<TokenDTO> result = tokenservices.getalltoken()
-                .stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+    public ResponseEntity<List<Token>> getAllTokens() {
+
+        List<Token> result = tokenservices.getAllTokens();
 
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
-    @PutMapping("/update")
-    public ResponseEntity<TokenDTO> updatetoken(@RequestBody TokenDTO data) {
-        Token token = convertToEntity(data);
-        Token result = tokenservices.updatetoken(token);
-
-        return new ResponseEntity<>(convertToDTO(result), HttpStatus.ACCEPTED);
-    }
-
+    // Get Token By ID
     @GetMapping("/getbyid/{id}")
-    public ResponseEntity<TokenDTO> getbyid(@PathVariable Long id) {
-        Token result = tokenservices.getbyid(id);
+    public ResponseEntity<Token> getTokenById(@PathVariable Long id) {
 
-        return new ResponseEntity<>(convertToDTO(result), HttpStatus.OK);
+        Token result = tokenservices.getTokenById(id);
+
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
+    // Update Token
+    @PutMapping("/update/{id}")
+    public ResponseEntity<Token> updateToken(
+            @PathVariable Long id,
+            @RequestBody Token token) {
+
+        Token result = tokenservices.updateToken(id, token);
+
+        return new ResponseEntity<>(result, HttpStatus.ACCEPTED);
+    }
+
+    // Delete Token
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deletetoken(@PathVariable Long id) {
-        tokenservices.deletetoken(id);
+    public ResponseEntity<String> deleteToken(@PathVariable Long id) {
+
+        tokenservices.deleteToken(id);
 
         return new ResponseEntity<>(
                 "Token deleted successfully",
@@ -119,51 +67,46 @@ public class TokenController {
         );
     }
 
-    // Automatic Token Generation
+    // Generate Normal Token
     @PostMapping("/generate")
-    public ResponseEntity<TokenDTO> generatetoken(
+    public ResponseEntity<Token> generateToken(
             @RequestParam Long doctorId,
             @RequestParam Long patientId) {
 
         Token result = tokenservices.generatetoken(doctorId, patientId);
 
-        return new ResponseEntity<>(convertToDTO(result), HttpStatus.CREATED);
+        return new ResponseEntity<>(result, HttpStatus.CREATED);
     }
 
-    // Advance Current Serving Token
+    // Generate Priority Token
+    @PostMapping("/priority")
+    public ResponseEntity<Token> generatePriorityToken(
+            @RequestParam Long doctorId,
+            @RequestParam Long patientId) {
+
+        Token result = tokenservices.generatePriorityToken(
+                doctorId, patientId
+        );
+
+        return new ResponseEntity<>(result, HttpStatus.CREATED);
+    }
+
+    // Advance Serving Token
     @PutMapping("/advance/{doctorId}")
-    public ResponseEntity<TokenDTO> advanceToken(
+    public ResponseEntity<Token> advanceToken(
             @PathVariable Long doctorId) {
 
         Token result = tokenservices.advanceToken(doctorId);
 
-        return new ResponseEntity<>(convertToDTO(result), HttpStatus.OK);
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
-    // Emergency / Priority Token Generation
-    @PostMapping("/priority")
-    public ResponseEntity<TokenDTO> generatePriorityToken(
-            @RequestParam Long doctorId,
-            @RequestParam Long patientId) {
-
-        Token result =
-                tokenservices.generatePriorityToken(doctorId, patientId);
-
-        return new ResponseEntity<>(
-                convertToDTO(result),
-                HttpStatus.CREATED
-        );
-    }
-
-    // Doctor-wise Daily Token History
+    // Get Daily Token History
     @GetMapping("/history/{doctorId}")
-    public ResponseEntity<List<TokenDTO>> getDailyHistory(
+    public ResponseEntity<List<Token>> getDailyHistory(
             @PathVariable Long doctorId) {
 
-        List<TokenDTO> result = tokenservices.getDailyHistory(doctorId)
-                .stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        List<Token> result = tokenservices.getDailyHistory(doctorId);
 
         return new ResponseEntity<>(result, HttpStatus.OK);
     }

@@ -1,12 +1,11 @@
-
 package Dharanisri.Project.Services;
 
-import Dharanisri.Project.Models.Token;
 import Dharanisri.Project.Models.Doctor;
 import Dharanisri.Project.Models.Patient;
-import Dharanisri.Project.Repository.TokenRepository;
+import Dharanisri.Project.Models.Token;
 import Dharanisri.Project.Repository.DoctorRepository;
 import Dharanisri.Project.Repository.PatientRepository;
+import Dharanisri.Project.Repository.TokenRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,29 +26,68 @@ public class TokenServices {
     @Autowired
     private PatientRepository patientrepository;
 
-    public Token createtoken(Token data) {
-        Token result = tokenrepository.save(data);
-        return result;
+
+    // Create Token
+    public Token createToken(Token token) {
+
+        Long doctorId = token.getDoctor().getId();
+        Long patientId = token.getPatient().getId();
+
+        Doctor doctor = doctorrepository.findById(doctorId)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+
+        Patient patient = patientrepository.findById(patientId)
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
+
+        token.setDoctor(doctor);
+        token.setPatient(patient);
+
+        return tokenrepository.save(token);
     }
 
-    public List<Token> getalltoken() {
+
+    // Get All Tokens
+    public List<Token> getAllTokens() {
         return tokenrepository.findAll();
     }
 
-    public Token updatetoken(Token data) {
-        return tokenrepository.save(data);
-    }
 
-    public Token getbyid(Long Id) {
-        return tokenrepository.findById(Id)
+    // Get Token By ID
+    public Token getTokenById(Long id) {
+        return tokenrepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Token not found"));
     }
 
-    public void deletetoken(Long Id) {
-        tokenrepository.deleteById(Id);
+
+    // Update Token
+    public Token updateToken(Long id, Token updatedToken) {
+
+        Token token = tokenrepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Token not found"));
+
+        token.setTokenNumber(updatedToken.getTokenNumber());
+        token.setTokenDate(updatedToken.getTokenDate());
+        token.setIsPriority(updatedToken.isIsPriority());
+        token.setStatus(updatedToken.getStatus());
+        token.setEstimatedWaitTime(updatedToken.getEstimatedWaitTime());
+        token.setDoctor(updatedToken.getDoctor());
+        token.setPatient(updatedToken.getPatient());
+
+        return tokenrepository.save(token);
     }
 
-    // Automatic Token Generation
+
+    // Delete Token
+    public void deleteToken(Long id) {
+
+        Token token = tokenrepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Token not found"));
+
+        tokenrepository.delete(token);
+    }
+
+
+    // Generate Normal Token
     public Token generatetoken(Long doctorId, Long patientId) {
 
         Doctor doctor = doctorrepository.findById(doctorId)
@@ -60,35 +98,33 @@ public class TokenServices {
 
         LocalDate today = LocalDate.now();
 
-        List<Token> todayTokens =
+        List<Token> tokens =
                 tokenrepository.findByDoctorAndDate(doctorId, today);
 
-        int nextTokenNumber = 1;
+        int nextTokenNumber = tokens.stream()
+                .mapToInt(Token::getTokenNumber)
+                .max()
+                .orElse(0) + 1;
 
-        for (Token token : todayTokens) {
-            if (token.getTokenNumber() >= nextTokenNumber) {
-                nextTokenNumber = token.getTokenNumber() + 1;
-            }
-        }
+        Token token = new Token();
 
-        Token newToken = new Token();
+        token.setTokenNumber(nextTokenNumber);
+        token.setTokenDate(today);
+        token.setIsPriority(false);
+        token.setStatus("WAITING");
+        token.setEstimatedWaitTime(0);
+        token.setDoctor(doctor);
+        token.setPatient(patient);
 
-        newToken.setTokenNumber(nextTokenNumber);
-        newToken.setTokenDate(today);
-        newToken.setIsPriority(false);
-        newToken.setStatus("WAITING");
-        newToken.setEstimatedWaitTime(0);
-        newToken.setDoctor(doctor);
-        newToken.setPatient(patient);
-
-        tokenrepository.save(newToken);
+        Token savedToken = tokenrepository.save(token);
 
         updateWaitingTimes(doctorId, today);
 
-        return tokenrepository.save(newToken);
+        return savedToken;
     }
 
-    // Priority Token Generation
+
+    // Generate Priority Token
     public Token generatePriorityToken(Long doctorId, Long patientId) {
 
         Doctor doctor = doctorrepository.findById(doctorId)
@@ -99,44 +135,46 @@ public class TokenServices {
 
         LocalDate today = LocalDate.now();
 
-        boolean priorityExists =
-                tokenrepository.existsActivePriorityToken(doctorId, today);
+        List<Token> tokens =
+                tokenrepository.findByDoctorAndDate(doctorId, today);
 
-        if (priorityExists) {
+        boolean activePriorityExists = tokens.stream()
+                .anyMatch(token ->
+                        token.isIsPriority()
+                                && (token.getStatus().equals("WAITING")
+                                || token.getStatus().equals("SERVING"))
+                );
+
+        if (activePriorityExists) {
             throw new RuntimeException(
                     "An active priority token already exists for this doctor"
             );
         }
 
-        List<Token> todayTokens =
-                tokenrepository.findByDoctorAndDate(doctorId, today);
+        int nextTokenNumber = tokens.stream()
+                .mapToInt(Token::getTokenNumber)
+                .max()
+                .orElse(0) + 1;
 
-        int nextTokenNumber = 1;
+        Token token = new Token();
 
-        for (Token token : todayTokens) {
-            if (token.getTokenNumber() >= nextTokenNumber) {
-                nextTokenNumber = token.getTokenNumber() + 1;
-            }
-        }
+        token.setTokenNumber(nextTokenNumber);
+        token.setTokenDate(today);
+        token.setIsPriority(true);
+        token.setStatus("WAITING");
+        token.setEstimatedWaitTime(0);
+        token.setDoctor(doctor);
+        token.setPatient(patient);
 
-        Token priorityToken = new Token();
-
-        priorityToken.setTokenNumber(nextTokenNumber);
-        priorityToken.setTokenDate(today);
-        priorityToken.setIsPriority(true);
-        priorityToken.setStatus("WAITING");
-        priorityToken.setEstimatedWaitTime(0);
-        priorityToken.setDoctor(doctor);
-        priorityToken.setPatient(patient);
-
-        tokenrepository.save(priorityToken);
+        Token savedToken = tokenrepository.save(token);
 
         updateWaitingTimes(doctorId, today);
 
-        return tokenrepository.save(priorityToken);
+        return savedToken;
     }
 
-    // Advance Current Serving Token
+
+    // Advance Serving Token
     public Token advanceToken(Long doctorId) {
 
         Doctor doctor = doctorrepository.findById(doctorId)
@@ -144,57 +182,52 @@ public class TokenServices {
 
         LocalDate today = LocalDate.now();
 
-        List<Token> todayTokens =
+        List<Token> tokens =
                 tokenrepository.findByDoctorAndDate(doctorId, today);
 
-        Token nextToken = null;
+        // Complete the current serving token
+        tokens.stream()
+                .filter(token -> token.getStatus().equals("SERVING"))
+                .findFirst()
+                .ifPresent(token -> {
+                    token.setStatus("COMPLETED");
+                    token.setEstimatedWaitTime(0);
+                    tokenrepository.save(token);
+                });
 
-        for (Token token : todayTokens) {
-
-            if (token.getStatus().equals("SERVING")) {
-                token.setStatus("COMPLETED");
-                tokenrepository.save(token);
-            }
-
-            if (token.getStatus().equals("WAITING")) {
-
-                if (nextToken == null) {
-                    nextToken = token;
-                } else if (token.isIsPriority() && !nextToken.isIsPriority()) {
-                    nextToken = token;
-                } else if (token.isIsPriority() == nextToken.isIsPriority()
-                        && token.getTokenNumber() < nextToken.getTokenNumber()) {
-                    nextToken = token;
-                }
-            }
-        }
-
-        if (nextToken == null) {
-            throw new RuntimeException("No waiting tokens available");
-        }
+        // Select next token: Priority first, then token number
+        Token nextToken = tokens.stream()
+                .filter(token -> token.getStatus().equals("WAITING"))
+                .sorted(Comparator
+                        .comparing(Token::isIsPriority).reversed()
+                        .thenComparing(Token::getTokenNumber))
+                .findFirst()
+                .orElseThrow(() ->
+                        new RuntimeException("No waiting tokens available")
+                );
 
         nextToken.setStatus("SERVING");
+        nextToken.setEstimatedWaitTime(0);
 
         doctor.setCurrentServingToken(nextToken.getTokenNumber());
         doctorrepository.save(doctor);
 
-        tokenrepository.save(nextToken);
+        Token savedToken = tokenrepository.save(nextToken);
 
         updateWaitingTimes(doctorId, today);
 
-        return nextToken;
+        return savedToken;
     }
 
-    // Doctor-wise Daily Token History
-    public List<Token> getDailyHistory(Long doctorId) {
 
-        doctorrepository.findById(doctorId)
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+    // Get Daily Token History
+    public List<Token> getDailyHistory(Long doctorId) {
 
         LocalDate today = LocalDate.now();
 
         return tokenrepository.findByDoctorAndDate(doctorId, today);
     }
+
 
     // Update Estimated Waiting Time
     private void updateWaitingTimes(Long doctorId, LocalDate today) {
@@ -209,12 +242,22 @@ public class TokenServices {
 
         int patientsAhead = 0;
 
+        // Reset waiting time for completed and serving tokens
         for (Token token : tokens) {
+
             if (token.getStatus().equals("SERVING")) {
+                token.setEstimatedWaitTime(0);
                 patientsAhead++;
+                tokenrepository.save(token);
+            }
+
+            else if (token.getStatus().equals("COMPLETED")) {
+                token.setEstimatedWaitTime(0);
+                tokenrepository.save(token);
             }
         }
 
+        // Sort waiting tokens: Priority first, then token number
         List<Token> waitingTokens = tokens.stream()
                 .filter(token -> token.getStatus().equals("WAITING"))
                 .sorted(Comparator
@@ -222,6 +265,7 @@ public class TokenServices {
                         .thenComparing(Token::getTokenNumber))
                 .toList();
 
+        // Calculate estimated waiting time
         for (Token token : waitingTokens) {
 
             token.setEstimatedWaitTime(
