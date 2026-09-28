@@ -41,4 +41,9 @@ public class DoctorController {
         }
     }
 
+    @DeleteMapping("/delete/{id}")
+    ResponseEntity<String> deletedoctor(@PathVariable long id){
+        doctorservices.deletedoctor(id);
+        return new ResponseEntity<>("Doctor deleted successfully", HttpStatus.OK);
+    }
 }
