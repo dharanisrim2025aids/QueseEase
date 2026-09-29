@@ -529,7 +529,7 @@ async function loadTokens() {
                     const id = getId(token);
 
                     const priority =
-                        getValue(token, "isPriority", "IsPriority");
+                        getValue(token, "priority", "isPriority");
 
                     const status =
                         getValue(token, "status", "Status");
@@ -667,7 +667,7 @@ async function updateTokenStatus(id, status) {
         id: Number(id),
         tokenNumber: getValue(token, "tokenNumber", "TokenNumber"),
         tokenDate: getValue(token, "tokenDate", "TokenDate"),
-        isPriority: getValue(token, "isPriority", "IsPriority"),
+            priority: getValue(token, "priority", "isPriority") ?? false,
         status: status,
         estimatedWaitTime: getValue(token, "estimatedWaitTime", "EstimatedWaitTime"),
         patient: patient ? { id: getId(patient) } : null,
